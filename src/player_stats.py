@@ -11,6 +11,7 @@ class PlayerStats:
 
     def _default_stats(self):
         return {
+            "kda": "N/A",
             "kd": "N/A",
             "hs": "N/A",
             "RankedRatingEarned": "N/A",
@@ -95,6 +96,10 @@ class PlayerStats:
                 stats = player.get("stats", {})
                 kills = stats.get("kills", 0)
                 deaths = stats.get("deaths", 0)
+                assists = stats.get("assists", 0)
+                score = stats.get("score", 0)
+                friendly_fire_damage = stats.get("friendlyFireOutgoing", 0)
+                self_damage = stats.get("selfDamage", 0)
                 break
 
         # Calculate KD
@@ -105,10 +110,15 @@ class PlayerStats:
 
         # Compile final stats
         final_stats = {
+            "kda": "/".join(map(str, [kills, deaths, assists])),
             "kd": kd,
             "hs": round((total_headshots / total_hits) * 100) if total_hits else "N/A",
             "RankedRatingEarned": ranked_rating_earned,
             "AFKPenalty": afk_penalty,
+            "assists": assists,
+            "score": score,
+            "friendly_fire_damage": friendly_fire_damage,
+            "self_damage": self_damage,
         }
         return final_stats
 

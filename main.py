@@ -525,7 +525,7 @@ try:
                         #     rankStatus = playerRank[1]
 
                         hs = ppstats["hs"]
-                        kd = ppstats["kd"]
+                        kda = ppstats["kda"]
 
                         rr_numeric_value = ppstats["RankedRatingEarned"]
                         afk_penalty = ppstats["AFKPenalty"]
@@ -641,7 +641,7 @@ try:
                                 leaderboard,
                                 hs,
                                 wr,
-                                kd,
+                                kda,
                                 level,
                                 ranked_rating_earned,
                             ]
@@ -656,7 +656,7 @@ try:
                             "peakRank": playerRank["peakrank"],
                             "peakRankAct": peakRankAct,
                             "rr": rr,
-                            "kd": ppstats["kd"],
+                            "kda": ppstats["kda"],
                             "headshotPercentage": ppstats["hs"],
                             "winPercentage": f"{playerRank['wr']} ({playerRank['numberofgames']})",
                             "level": player_level,
@@ -774,7 +774,7 @@ try:
                         # playerRank = playerRank[0]
 
                         hs = ppstats["hs"]
-                        kd = ppstats["kd"]
+                        kda = ppstats["kda"]
 
                         rr_numeric_value = ppstats["RankedRatingEarned"]
                         afk_penalty = ppstats["AFKPenalty"]
@@ -897,7 +897,7 @@ try:
                                 leaderboard,
                                 hs,
                                 wr,
-                                kd,
+                                kda,
                                 level,
                                 ranked_rating_earned,
                             ]
@@ -912,7 +912,7 @@ try:
                             "peakRankAct": peakRankAct,
                             "level": player_level,
                             "rr": rr,
-                            "kd": ppstats["kd"],
+                            "kda": ppstats["kda"],
                             "headshotPercentage": ppstats["hs"],
                             "winPercentage": f"{playerRank['wr']} ({playerRank['numberofgames']})",
                         }
@@ -975,7 +975,7 @@ try:
 
                             ppstats = pstats.get_stats(player["Subject"])
                             hs = ppstats["hs"]
-                            kd = ppstats["kd"]
+                            kda = ppstats["kda"]
 
                             rr_numeric_value = ppstats["RankedRatingEarned"]
                             afk_penalty = ppstats["AFKPenalty"]
@@ -1050,7 +1050,7 @@ try:
                                     leaderboard,
                                     hs,
                                     wr,
-                                    kd,
+                                    kda,
                                     level,
                                     ranked_rating_earned,
                                 ]
@@ -1063,7 +1063,7 @@ try:
                                 "peakRankAct": peakRankAct,
                                 "level": player_level,
                                 "rr": rr,
-                                "kd": ppstats["kd"],
+                                "kda": ppstats["kda"],
                                 "headshotPercentage": ppstats["hs"],
                                 "winPercentage": f"{playerRank['wr']} ({playerRank['numberofgames']})",
                             }

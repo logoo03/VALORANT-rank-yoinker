@@ -28,7 +28,7 @@ def configure():
         "Optional Feature Flags",
         Separator(),
         "Full Basic Config (Suitable for most users)",
-        "Full Advance Config (I know what i am doing!)",
+        "Full Advanced Config (I know what i am doing!)",
         Separator(),
         "Save and Exit Configurator",
         "Exit Configurator"

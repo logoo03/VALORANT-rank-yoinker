@@ -6,7 +6,7 @@ from rich.console import Console as RichConsole
 
 # define constants for all column headers
 # avoids "magic strings"
-HEADER_PARTY = "Party"
+HEADER_PARTY = "P"
 HEADER_AGENT = "Agent"
 HEADER_NAME = "Name"
 HEADER_SKIN = "Skin"
@@ -18,7 +18,7 @@ HEADER_PREVIOUS_RANK_SHORT = "Last Act"
 HEADER_LEADERBOARD_POS = "Pos."
 HEADER_HS_PERCENT = "HS"
 HEADER_WINRATE = "WR"
-HEADER_KD_RATIO = "KD"
+HEADER_KDA= "KDA"
 HEADER_LEVEL = "Level"
 HEADER_EARNED_RR = "ΔRR"
 
@@ -35,7 +35,7 @@ TABLE_COLUMN_NAMES = Literal[
     HEADER_LEADERBOARD_POS,
     HEADER_HS_PERCENT,
     HEADER_WINRATE,
-    HEADER_KD_RATIO,
+    HEADER_KDA,
     HEADER_LEVEL,
     HEADER_EARNED_RR,
 ]
@@ -47,7 +47,7 @@ class Table:
         self.config = config
         self.rich_table = RichTable()
         self.col_flags = [
-            False,  # Party
+            True,  # Party
             True,  # Agent
             True,  # Name
             bool(config.table.get("skin", True)),  # Skin
@@ -58,7 +58,7 @@ class Table:
             bool(config.table.get("leaderboard", True)),  # Leaderboard Position
             bool(config.table.get("headshot_percent", True)),  # hs
             bool(config.table.get("winrate", True)),  # wr
-            bool(config.table.get("kd", True)),  # KD
+            bool(config.table.get("kda", True)),  # KDA
             bool(config.table.get("level", True)),  # Level
             bool(config.table.get("earned_rr", True)),  # Earned RR
         ]
@@ -191,7 +191,7 @@ class Table:
         # Columns that should never be truncated
         static_overflow_fold_columns = {
             HEADER_HS_PERCENT,
-            HEADER_KD_RATIO,
+            HEADER_KDA,
             HEADER_LEVEL,
             HEADER_LEADERBOARD_POS,
         }

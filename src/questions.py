@@ -2,6 +2,7 @@ from InquirerPy.base.control import Choice
 from src.constants import DEFAULT_CONFIG, WEAPONS
 
 TABLE_OPTS = {
+    "party": "Party",
     "skin": "Skin",
     "rr": "Ranked Rating",
     "earned_rr": "RR gained or lost (and AFK Penalties)",
@@ -10,7 +11,7 @@ TABLE_OPTS = {
     "previousrank": "Previous Act Rank",
     "headshot_percent": "Headshot Percentage",
     "winrate": "WinRate",
-    "kd": "K/D Ratio <!> Last Game Only <!>",
+    "kda": "K/D/A <!> Last Game Only <!>",
     "level": "Account Level"
 }
 
