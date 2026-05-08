@@ -82,7 +82,8 @@ class Table:
         self.field_names = [
             c for c, i in zip(self.field_names_candidates, self.col_flags) if i
         ]
-        self.console = RichConsole(color_system="truecolor")
+        self.console = RichConsole(color_system="truecolor", record=True)
+        self.html_output = ""
 
         # only to get init value not used
         self.overall_col_flags = [
@@ -151,6 +152,7 @@ class Table:
         self.apply_rows()
 
         self.console.print(self.rich_table)
+        self.html_output = self.console.export_html()
 
     def clear(self):
         self.rich_table = RichTable()
