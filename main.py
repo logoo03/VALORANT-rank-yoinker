@@ -93,132 +93,8 @@ except Exception as e:
     input("press enter to exit...\n")
     os._exit(1)
 
-acc_manager = AccountManager(log, AccountConfig, AccountAuth, NUMBERTORANKS)
 
-ErrorSRC = Error(log, acc_manager)
-
-Requests.check_version(version, Requests.copy_run_update_script)
-Requests.check_status()
-Requests = Requests(version, log, ErrorSRC)
-
-cfg = Config(log)
-
-content = Content(Requests, log)
-
-rank = Rank(Requests, log, content, before_ascendant_seasons)
-pstats = PlayerStats(Requests, log, cfg)
-
-namesClass = Names(Requests, log)
-
-presences = Presences(Requests, log)
-
-menu = Menu(Requests, log, presences)
-pregame = Pregame(Requests, log)
-coregame = Coregame(Requests, log)
-
-Server = Server(log, ErrorSRC)
-Server.start_server()
-
-agent_dict = content.get_all_agents()
-
-map_info = content.get_all_maps()
-map_urls = content.get_map_urls(map_info)
-map_splashes = content.get_map_splashes(map_info)
-
-current_map = coregame.get_current_map(map_urls, map_splashes)
-
-colors = Colors(log, hide_names, agent_dict, AGENTCOLORLIST)
-
-loadoutsClass = Loadouts(Requests, log, colors, Server, current_map)
-table = Table(cfg, log)
-
-stats = Stats()
-
-if cfg.get_feature_flag("discord_rpc"):
-    rpc = Rpc(map_urls, gamemodes, colors, log)
-else:
-    rpc = None
-
-Wss = Ws(Requests.lockfile, Requests, cfg, colors, hide_names, Server, rpc)
-# loop = asyncio.new_event_loop()
-# asyncio.set_event_loop(loop)
-# loop.run_forever()
-
-log(f"VALORANT rank yoinker v{version}")
-
-valoApiSkins = requests.get("https://valorant-api.com/v1/weapons/skins")
-gameContent = content.get_content()
-seasonID = content.get_latest_season_id(gameContent)
-previousSeasonID = content.get_previous_season_id(gameContent)
-lastGameState = ""
-
-# Cache rank+stats per player for the current match so PREGAME data can be reused in INGAME
-match_player_cache = {
-    "match_id": None,
-    "players": {},  # puuid -> {"playerRank", "previousPlayerRank", "ppstats", "ts"}
-}
-MATCH_PLAYER_CACHE_TTL_SECONDS = 300  # safety TTL
-
-def reset_match_player_cache(match_id=None):
-    match_player_cache["match_id"] = match_id
-    match_player_cache["players"] = {}
-
-def ensure_match_player_cache(match_id):
-    if not match_id:
-        return
-
-    # New match => reset cache
-    if match_player_cache["match_id"] != match_id:
-        reset_match_player_cache(match_id)
-        return
-
-    # TTL cleanup (safety)
-    now = time.time()
-    expired = []
-    for puuid, cached in match_player_cache["players"].items():
-        ts = cached.get("ts", now)
-        if (now - ts) > MATCH_PLAYER_CACHE_TTL_SECONDS:
-            expired.append(puuid)
-
-    for puuid in expired:
-        del match_player_cache["players"][puuid]
-
-def get_or_fetch_rank_and_stats(player_subject, current_match_id):
-    if current_match_id:
-        ensure_match_player_cache(current_match_id)
-        cached = match_player_cache["players"].get(player_subject)
-        if cached is not None:
-            return (
-                cached["playerRank"],
-                cached["previousPlayerRank"],
-                cached["ppstats"],
-            )
-
-    # Cache miss -> fetch
-    playerRank = rank.get_rank(player_subject, seasonID)
-    previousPlayerRank = rank.get_rank(player_subject, previousSeasonID)
-    ppstats = pstats.get_stats(player_subject)
-
-    if current_match_id and match_player_cache["match_id"] == current_match_id:
-        match_player_cache["players"][player_subject] = {
-            "playerRank": dict(playerRank) if isinstance(playerRank, dict) else playerRank,
-            "previousPlayerRank": dict(previousPlayerRank) if isinstance(previousPlayerRank, dict) else previousPlayerRank,
-            "ppstats": dict(ppstats) if isinstance(ppstats, dict) else ppstats,
-            "ts": time.time(),
-        }
-
-    return playerRank, previousPlayerRank, ppstats
-
-print("\nvRY Mobile", color(f"- {get_ip()}:{cfg.port}", fore=(255, 127, 80)))
-
-print(
-    color(
-        "\nVisit https://vry.netlify.app/matchLoadouts to view full player inventories\n",
-        fore=(255, 253, 205),
-    )
-)
-
-richConsole = RichConsole()
+# Moved to WorkerThread
 
 
 class WorkerThread(QThread):
@@ -230,6 +106,136 @@ class WorkerThread(QThread):
 
     def run(self):
         global server, Wss, Requests
+        global table, cfg, content, rank, pstats, presences, menu, coregame, current_map, colors, loadoutsClass, rpc, Wss, valoApiSkins, seasonID, previousSeasonID, gamemodes, agent_dict, map_urls, pregame, namesClass, richConsole
+        acc_manager = AccountManager(log, AccountConfig, AccountAuth, NUMBERTORANKS)
+
+        ErrorSRC = Error(log, acc_manager)
+
+        Requests.check_version(version, Requests.copy_run_update_script)
+        Requests.check_status()
+        Requests = Requests(version, log, ErrorSRC)
+
+        cfg = Config(log)
+
+        content = Content(Requests, log)
+
+        rank = Rank(Requests, log, content, before_ascendant_seasons)
+        pstats = PlayerStats(Requests, log, cfg)
+
+        namesClass = Names(Requests, log)
+
+        presences = Presences(Requests, log)
+
+        menu = Menu(Requests, log, presences)
+        pregame = Pregame(Requests, log)
+        coregame = Coregame(Requests, log)
+
+        Server = Server(log, ErrorSRC)
+        Server.start_server()
+
+        agent_dict = content.get_all_agents()
+
+        map_info = content.get_all_maps()
+        map_urls = content.get_map_urls(map_info)
+        map_splashes = content.get_map_splashes(map_info)
+
+        current_map = coregame.get_current_map(map_urls, map_splashes)
+
+        colors = Colors(log, hide_names, agent_dict, AGENTCOLORLIST)
+
+        loadoutsClass = Loadouts(Requests, log, colors, Server, current_map)
+        table = Table(cfg, log)
+
+        stats = Stats()
+
+        if cfg.get_feature_flag("discord_rpc"):
+            rpc = Rpc(map_urls, gamemodes, colors, log)
+        else:
+            rpc = None
+
+        Wss = Ws(Requests.lockfile, Requests, cfg, colors, hide_names, Server, rpc)
+        # loop = asyncio.new_event_loop()
+        # asyncio.set_event_loop(loop)
+        # loop.run_forever()
+
+        log(f"VALORANT rank yoinker v{version}")
+
+        valoApiSkins = requests.get("https://valorant-api.com/v1/weapons/skins")
+        gameContent = content.get_content()
+        seasonID = content.get_latest_season_id(gameContent)
+        previousSeasonID = content.get_previous_season_id(gameContent)
+        lastGameState = ""
+
+        # Cache rank+stats per player for the current match so PREGAME data can be reused in INGAME
+        match_player_cache = {
+            "match_id": None,
+            "players": {},  # puuid -> {"playerRank", "previousPlayerRank", "ppstats", "ts"}
+        }
+        MATCH_PLAYER_CACHE_TTL_SECONDS = 300  # safety TTL
+
+        def reset_match_player_cache(match_id=None):
+            match_player_cache["match_id"] = match_id
+            match_player_cache["players"] = {}
+
+        def ensure_match_player_cache(match_id):
+            if not match_id:
+                return
+
+            # New match => reset cache
+            if match_player_cache["match_id"] != match_id:
+                reset_match_player_cache(match_id)
+                return
+
+            # TTL cleanup (safety)
+            now = time.time()
+            expired = []
+            for puuid, cached in match_player_cache["players"].items():
+                ts = cached.get("ts", now)
+                if (now - ts) > MATCH_PLAYER_CACHE_TTL_SECONDS:
+                    expired.append(puuid)
+
+            for puuid in expired:
+                del match_player_cache["players"][puuid]
+
+        def get_or_fetch_rank_and_stats(player_subject, current_match_id):
+            if current_match_id:
+                ensure_match_player_cache(current_match_id)
+                cached = match_player_cache["players"].get(player_subject)
+                if cached is not None:
+                    return (
+                        cached["playerRank"],
+                        cached["previousPlayerRank"],
+                        cached["ppstats"],
+                    )
+
+            # Cache miss -> fetch
+            playerRank = rank.get_rank(player_subject, seasonID)
+            previousPlayerRank = rank.get_rank(player_subject, previousSeasonID)
+            ppstats = pstats.get_stats(player_subject)
+
+            if current_match_id and match_player_cache["match_id"] == current_match_id:
+                match_player_cache["players"][player_subject] = {
+                    "playerRank": dict(playerRank) if isinstance(playerRank, dict) else playerRank,
+                    "previousPlayerRank": dict(previousPlayerRank) if isinstance(previousPlayerRank, dict) else previousPlayerRank,
+                    "ppstats": dict(ppstats) if isinstance(ppstats, dict) else ppstats,
+                    "ts": time.time(),
+                }
+
+            return playerRank, previousPlayerRank, ppstats
+
+        print("\nvRY Mobile", color(f"- {get_ip()}:{cfg.port}", fore=(255, 127, 80)))
+
+        print(
+            color(
+                "\nVisit https://vry.netlify.app/matchLoadouts to view full player inventories\n",
+                fore=(255, 253, 205),
+            )
+        )
+
+        richConsole = RichConsole()
+
+
+
         firstTime = True
         firstPrint = True
         while True:
