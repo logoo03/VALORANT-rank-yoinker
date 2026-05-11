@@ -89,7 +89,7 @@ try:
     else:
         os.system("cls")
 except Exception as e:
-    print("Something went wrong while running configurator!")
+    print("Something went wrong while runn  ing configurator!")
     log(f"configurator encountered an error")
     log(str(traceback.format_exc()))
     input("press enter to exit...\n")
@@ -1158,7 +1158,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("VALORANT rank yoinker")
-        self.resize(1000, 600)
+        self.resize(1000, 500)
 
         main_layout = QVBoxLayout()
 
@@ -1190,12 +1190,14 @@ class MainWindow(QMainWindow):
         self.history_table = QTableWidget()
         self.history_table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.history_table.verticalHeader().setVisible(False)
-        self.history_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        # self.history_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         self.history_layout.addWidget(self.history_table)
         self.history_tab.setLayout(self.history_layout)
 
-        self.live_table.setStyleSheet("background-color: #121212; color: #FFFFFF;")
-        self.history_table.setStyleSheet("background-color: #121212; color: #FFFFFF;")
+        self.live_table.setStyleSheet("background-color: #121212; color: #FFFFFF; font-size: 14px; font-weight: 700; font-family: 'Malgun Gothic'; gridline-color: #fff;") #border: 2px solid #fff;
+        self.history_table.setStyleSheet("background-color: #121212; color: #FFFFFF; font-size: 14px; font-weight: 700; font-family: 'Malgun Gothic'; gridline-color: #fff;") #border: 2px solid #fff;
+        self.history_table.horizontalHeader().setStyleSheet("background-color: #121212;")
+        self.live_table.horizontalHeader().setStyleSheet("background-color: #121212; color: #000")
         self.tabs.addTab(self.live_tab, "Live Match")
         self.tabs.addTab(self.history_tab, "Match History")
 
@@ -1222,6 +1224,7 @@ class MainWindow(QMainWindow):
         for row_idx, row_data in enumerate(rows):
             for col_idx, (text, color_rgb) in enumerate(row_data):
                 item = QTableWidgetItem(text)
+                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 if color_rgb:
                     r, g, b = color_rgb
                     item.setForeground(QBrush(QColor(r, g, b)))
@@ -1229,22 +1232,27 @@ class MainWindow(QMainWindow):
 
         # Set specific column widths
         header = self.live_table.horizontalHeader()
+        for h in headers:
+            header.setSectionResizeMode(headers.index(h), QHeaderView.ResizeToContents)
         if "Name" in headers:
             name_idx = headers.index("Name")
-            self.live_table.setColumnWidth(name_idx, 250) # 2.5x base roughly
-            header.setSectionResizeMode(name_idx, QHeaderView.Interactive)
-        if "Peak Rank" in headers:
-            peak_idx = headers.index("Peak Rank")
-            self.live_table.setColumnWidth(peak_idx, 150) # 1.5x roughly
-            header.setSectionResizeMode(peak_idx, QHeaderView.Interactive)
-        if "HS" in headers:
-            hs_idx = headers.index("HS")
-            self.live_table.setColumnWidth(hs_idx, 50) # 0.5x roughly
-            header.setSectionResizeMode(hs_idx, QHeaderView.Interactive)
-        if "Level" in headers:
-            lvl_idx = headers.index("Level")
-            self.live_table.setColumnWidth(lvl_idx, 50) # 0.5x roughly
-            header.setSectionResizeMode(lvl_idx, QHeaderView.Interactive)
+            header.setSectionResizeMode(name_idx, QHeaderView.Stretch)
+        # if "Peak Rank" in headers:
+        #     peak_idx = headers.index("Peak Rank")
+        #     header.setSectionResizeMode(peak_idx, QHeaderView.ResizeToContents)
+        #     # self.live_table.setColumnWidth(peak_idx, 150)
+        # if "HS" in headers:
+        #     hs_idx = headers.index("HS")
+        #     header.setSectionResizeMode(hs_idx, QHeaderView.ResizeToContents)
+        #     # self.live_table.setColumnWidth(hs_idx, 50)
+        # if "Level" in headers:
+        #     lvl_idx = headers.index("Level")
+        #     header.setSectionResizeMode(lvl_idx, QHeaderView.ResizeToContents)
+        #     # self.live_table.setColumnWidth(lvl_idx, 50)
+        # if "Rank" in headers:
+        #     rank_idx = headers.index("Rank")
+        #     header.setSectionResizeMode(rank_idx, QHeaderView.ResizeToContents)
+        #     # self.live_table.setColumnWidth(rank_idx, 50)
 
     def update_history_table(self, match_data_list):
         self.history_table.clear()
