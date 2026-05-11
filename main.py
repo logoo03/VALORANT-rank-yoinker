@@ -101,7 +101,6 @@ except Exception as e:
 
 class WorkerThread(QThread):
     update_table = pyqtSignal(dict)
-    match_history_ready = pyqtSignal(list)
 
     def __init__(self):
         super().__init__()
@@ -240,7 +239,6 @@ class WorkerThread(QThread):
 
 
         firstTime = True
-        self.match_history_ready.emit(list(stats.read_match_data().values()))
         firstPrint = True
         while True:
                 table.clear()
@@ -1149,9 +1147,15 @@ class WorkerThread(QThread):
                         already_played_with = []
                 if cfg.cooldown == 0:
                     self.refresh_event.wait()
-                    self.refresh_event.clear()
                 else:
-                    time.sleep(cfg.cooldown)
+                    self.refresh_event.wait(cfg.cooldown)
+
+                if self.refresh_event.is_set():
+                    self.refresh_event.clear()
+                    rank.invalidate_cached_responses()
+                    reset_match_player_cache()
+                    if hasattr(pstats, "clear_runtime_cache"):
+                        pstats.clear_runtime_cache()
 
 
 class MainWindow(QMainWindow):
@@ -1172,36 +1176,14 @@ class MainWindow(QMainWindow):
 
         main_layout.addLayout(top_layout)
 
-        self.tabs = QTabWidget()
-
-        # Tab 1: Live Match
-        self.live_tab = QWidget()
-        self.live_layout = QVBoxLayout()
         self.live_table = QTableWidget()
         self.live_table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.live_table.verticalHeader().setVisible(False)
         self.live_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        self.live_layout.addWidget(self.live_table)
-        self.live_tab.setLayout(self.live_layout)
-
-        # Tab 2: Match History
-        self.history_tab = QWidget()
-        self.history_layout = QVBoxLayout()
-        self.history_table = QTableWidget()
-        self.history_table.setEditTriggers(QTableWidget.NoEditTriggers)
-        self.history_table.verticalHeader().setVisible(False)
-        # self.history_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
-        self.history_layout.addWidget(self.history_table)
-        self.history_tab.setLayout(self.history_layout)
-
         self.live_table.setStyleSheet("background-color: #121212; color: #FFFFFF; font-size: 14px; font-weight: 700; font-family: 'Malgun Gothic'; gridline-color: #fff;") #border: 2px solid #fff;
-        self.history_table.setStyleSheet("background-color: #121212; color: #FFFFFF; font-size: 14px; font-weight: 700; font-family: 'Malgun Gothic'; gridline-color: #fff;") #border: 2px solid #fff;
-        self.history_table.horizontalHeader().setStyleSheet("background-color: #121212;")
         self.live_table.horizontalHeader().setStyleSheet("background-color: #121212; color: #000")
-        self.tabs.addTab(self.live_tab, "Live Match")
-        self.tabs.addTab(self.history_tab, "Match History")
 
-        main_layout.addWidget(self.tabs)
+        main_layout.addWidget(self.live_table)
 
         container = QWidget()
         container.setLayout(main_layout)
@@ -1209,7 +1191,6 @@ class MainWindow(QMainWindow):
 
         self.worker = WorkerThread()
         self.worker.update_table.connect(self.update_live_table)
-        self.worker.match_history_ready.connect(self.update_history_table)
         self.worker.start()
 
     def update_live_table(self, data):
@@ -1253,36 +1234,6 @@ class MainWindow(QMainWindow):
         #     rank_idx = headers.index("Rank")
         #     header.setSectionResizeMode(rank_idx, QHeaderView.ResizeToContents)
         #     # self.live_table.setColumnWidth(rank_idx, 50)
-
-    def update_history_table(self, match_data_list):
-        self.history_table.clear()
-        headers = ["Match ID", "Map", "Score", "KDA", "Rank"]
-        self.history_table.setColumnCount(len(headers))
-        self.history_table.setHorizontalHeaderLabels(headers)
-        self.history_table.setRowCount(len(match_data_list))
-
-        for row_idx, match in enumerate(match_data_list):
-            match_id = match.get("matchInfo", {}).get("matchId", "Unknown")
-            map_name = match.get("matchInfo", {}).get("mapId", "Unknown").split("/")[-1]
-
-            # Simplified aggregation
-            teams = match.get("teams", [])
-            score = "N/A"
-            if teams and len(teams) >= 2:
-                score = f"{teams[0].get('roundsWon', 0)} - {teams[1].get('roundsWon', 0)}"
-
-            players = match.get("players", [])
-            kda_list = []
-            for p in players:
-                stats = p.get("stats", {})
-                kda_list.append(f"{stats.get('kills', 0)}/{stats.get('deaths', 0)}/{stats.get('assists', 0)}")
-            kda = ", ".join(kda_list[:2]) + "..." if len(kda_list) > 2 else ", ".join(kda_list)
-
-            self.history_table.setItem(row_idx, 0, QTableWidgetItem(str(match_id)))
-            self.history_table.setItem(row_idx, 1, QTableWidgetItem(str(map_name)))
-            self.history_table.setItem(row_idx, 2, QTableWidgetItem(str(score)))
-            self.history_table.setItem(row_idx, 3, QTableWidgetItem(str(kda)))
-            self.history_table.setItem(row_idx, 4, QTableWidgetItem("N/A")) # Rank details take more API calls to resolve historically
 
     def manual_refresh(self):
         self.worker.refresh_event.set()
