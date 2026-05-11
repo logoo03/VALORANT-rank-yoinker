@@ -130,8 +130,8 @@ class WorkerThread(QThread):
         pregame = Pregame(Requests, log)
         coregame = Coregame(Requests, log)
 
-        Server = Server(log, ErrorSRC)
-        Server.start_server()
+        Server_inst = Server(log, ErrorSRC)
+        Server_inst.start_server()
 
         agent_dict = content.get_all_agents()
 
@@ -143,7 +143,7 @@ class WorkerThread(QThread):
 
         colors = Colors(log, hide_names, agent_dict, AGENTCOLORLIST)
 
-        loadoutsClass = Loadouts(Requests, log, colors, Server, current_map)
+        loadoutsClass = Loadouts(Requests, log, colors, Server_inst, current_map)
         table = Table(cfg, log)
 
         stats = Stats()
@@ -153,7 +153,7 @@ class WorkerThread(QThread):
         else:
             rpc = None
 
-        Wss = Ws(Requests.lockfile, Requests, cfg, colors, hide_names, Server, rpc)
+        Wss = Ws(Requests.lockfile, Requests, cfg, colors, hide_names, Server_inst, rpc)
         # loop = asyncio.new_event_loop()
         # asyncio.set_event_loop(loop)
         # loop.run_forever()
@@ -318,7 +318,7 @@ class WorkerThread(QThread):
 
                     Requests.get_headers(refresh=True)
 
-                    Wss = Ws(Requests.lockfile, Requests, cfg, colors, hide_names, Server, rpc)
+                    Wss = Ws(Requests.lockfile, Requests, cfg, colors, hide_names, Server_inst, rpc)
 
                     firstTime = True
                     lastGameState = ""
@@ -1129,7 +1129,7 @@ class WorkerThread(QThread):
                         )
 
                         table.set_caption(f"VALORANT rank yoinker v{version}")
-                        Server.send_payload("heartbeat", heartbeat_data)
+                        Server_inst.send_payload("heartbeat", heartbeat_data)
                         table.display()
                         self.update_html.emit(table.html_output)
                         firstPrint = False

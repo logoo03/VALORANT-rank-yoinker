@@ -1,5 +1,0 @@
-print("If get_headers(init=True) returns False, it calls self.get_lockfile(ignoreLockfile=True).")
-print("Inside get_lockfile, if ignoreLockfile=True, Error.LockfileError() returns True only when the file is created.")
-print("But wait, the user's issue says 'The process stucks in main.py, Requests = Requests(...). Requests' __init__() was called successfully. But then the program doesn't run the next line.'")
-print("This usually means it's stuck inside __init__().")
-print("Let's look at get_headers()")
