@@ -117,7 +117,7 @@ class Table:
     def add_row_table(self, args: list):
         # row = [c for c, i in zip(args, self.col_flags) if i]
         # row = [self.ansi_to_console(str(i)) for i in row]
-        self.rows.append(zip(self.field_names_candidates, args))
+        self.rows.append(list(zip(self.field_names_candidates, args)))
 
         # self.rich_table.add_row(*row)
 
@@ -125,7 +125,7 @@ class Table:
         # empty_row = [""] * sum(self.col_flags)
         # self.rich_table.add_row(*empty_row)
         self.rows.append(
-            zip(self.field_names_candidates, "" * len(self.field_names_candidates))
+            list(zip(self.field_names_candidates, [""] * len(self.field_names_candidates)))
         )
 
     def apply_rows(self):
