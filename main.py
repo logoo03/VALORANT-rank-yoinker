@@ -1194,6 +1194,8 @@ class MainWindow(QMainWindow):
         self.history_layout.addWidget(self.history_table)
         self.history_tab.setLayout(self.history_layout)
 
+        self.live_table.setStyleSheet("background-color: #121212; color: #FFFFFF;")
+        self.history_table.setStyleSheet("background-color: #121212; color: #FFFFFF;")
         self.tabs.addTab(self.live_tab, "Live Match")
         self.tabs.addTab(self.history_tab, "Match History")
 
@@ -1218,8 +1220,31 @@ class MainWindow(QMainWindow):
         self.live_table.setRowCount(len(rows))
 
         for row_idx, row_data in enumerate(rows):
-            for col_idx, col_val in enumerate(row_data):
-                self.live_table.setItem(row_idx, col_idx, QTableWidgetItem(str(col_val)))
+            for col_idx, (text, color_rgb) in enumerate(row_data):
+                item = QTableWidgetItem(text)
+                if color_rgb:
+                    r, g, b = color_rgb
+                    item.setForeground(QBrush(QColor(r, g, b)))
+                self.live_table.setItem(row_idx, col_idx, item)
+
+        # Set specific column widths
+        header = self.live_table.horizontalHeader()
+        if "Name" in headers:
+            name_idx = headers.index("Name")
+            self.live_table.setColumnWidth(name_idx, 250) # 2.5x base roughly
+            header.setSectionResizeMode(name_idx, QHeaderView.Interactive)
+        if "Peak Rank" in headers:
+            peak_idx = headers.index("Peak Rank")
+            self.live_table.setColumnWidth(peak_idx, 150) # 1.5x roughly
+            header.setSectionResizeMode(peak_idx, QHeaderView.Interactive)
+        if "HS" in headers:
+            hs_idx = headers.index("HS")
+            self.live_table.setColumnWidth(hs_idx, 50) # 0.5x roughly
+            header.setSectionResizeMode(hs_idx, QHeaderView.Interactive)
+        if "Level" in headers:
+            lvl_idx = headers.index("Level")
+            self.live_table.setColumnWidth(lvl_idx, 50) # 0.5x roughly
+            header.setSectionResizeMode(lvl_idx, QHeaderView.Interactive)
 
     def update_history_table(self, match_data_list):
         self.history_table.clear()

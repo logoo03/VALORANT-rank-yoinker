@@ -47,7 +47,7 @@ class Table:
         self.config = config
         self.rich_table = RichTable()
         self.col_flags = [
-            True,  # Party
+            False,  # Party
             True,  # Agent
             True,  # Name
             bool(config.table.get("skin", True)),  # Skin
@@ -148,6 +148,21 @@ class Table:
             self.log(f"Warning: Attempted to set a flag for a non-existent column: {field_name}")
 
 
+    def parse_ansi_to_rgb_tuple(self, line):
+        import re
+        line = str(line)
+        # Look for the truecolor RGB format: \x1b[38;2;r;g;bm
+        match = re.search(r'\x1b\[38;2;(\d+);(\d+);(\d+)m(.*)', line)
+
+        # Remove all remaining ANSI codes to get pure text
+        text = self.escape_ansi(line)
+
+        if match:
+            r, g, b = int(match.group(1)), int(match.group(2)), int(match.group(3))
+            return text, (r, g, b)
+        else:
+            return text, None
+
     def display(self):
         self.log("rows: " + str(self.rows))
         self.set_columns()
@@ -158,8 +173,8 @@ class Table:
 
         self.raw_data = {"headers": self.fields_to_display, "rows": []}
         for row in self.rows:
-            # removing ansi codes for raw data UI
-            row_data = [self.escape_ansi(str(v)) for i, v in row if i in self.fields_to_display]
+            # keeping colors for PyQt UI
+            row_data = [self.parse_ansi_to_rgb_tuple(str(v)) for i, v in row if i in self.fields_to_display]
             self.raw_data["rows"].append(row_data)
 
     def escape_ansi(self, line):
