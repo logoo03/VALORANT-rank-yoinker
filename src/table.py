@@ -84,6 +84,8 @@ class Table:
         ]
         self.console = RichConsole(color_system="truecolor", record=True)
         self.html_output = ""
+        self.raw_data = {"headers": [], "rows": []}
+
 
         # only to get init value not used
         self.overall_col_flags = [
@@ -153,6 +155,17 @@ class Table:
 
         self.console.print(self.rich_table)
         self.html_output = self.console.export_html()
+
+        self.raw_data = {"headers": self.fields_to_display, "rows": []}
+        for row in self.rows:
+            # removing ansi codes for raw data UI
+            row_data = [self.escape_ansi(str(v)) for i, v in row if i in self.fields_to_display]
+            self.raw_data["rows"].append(row_data)
+
+    def escape_ansi(self, line):
+        import re
+        ansi_escape = re.compile(r"(?:[@-_]|[-])[0-?]*[ -/]*[@-~]")
+        return ansi_escape.sub("", line)
 
     def clear(self):
         self.rich_table = RichTable()

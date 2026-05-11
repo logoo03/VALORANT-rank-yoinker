@@ -60,3 +60,31 @@ class Stats:
                 return f"{s // 86400} days"
             else:
                 return f"{s // 86400} days"
+    def save_match_data(self, match_id, match_data):
+        try:
+            os.mkdir(os.path.join(os.getenv('APPDATA'), "vry"))
+        except FileExistsError:
+            pass
+        except TypeError:
+            pass # Linux mock
+
+        filepath = os.path.join(os.getenv('APPDATA') or '/tmp', "vry", "match_history.json")
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        try:
+            with open(filepath, "r") as f:
+                original_data = json.load(f)
+        except (FileNotFoundError, json.decoder.JSONDecodeError):
+            original_data = {}
+
+        if match_id not in original_data:
+            original_data[match_id] = match_data
+            with open(filepath, "w") as f:
+                json.dump(original_data, f)
+
+    def read_match_data(self):
+        filepath = os.path.join(os.getenv('APPDATA') or '/tmp', "vry", "match_history.json")
+        try:
+            with open(filepath, "r") as f:
+                return json.load(f)
+        except (FileNotFoundError, json.decoder.JSONDecodeError):
+            return {}
