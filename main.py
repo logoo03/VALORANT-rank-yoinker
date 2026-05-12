@@ -46,10 +46,19 @@ from src.account_manager.account_auth import AccountAuth
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-os.system(f"title VALORANT rank yoinker v{version}")
+WINDOW_TITLE = '쭈니곤듀의 발로란트 도우미 ><'
+
+os.system(f"title {WINDOW_TITLE}")
 
 server = ""
 
+def resource_path(relative_path):
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
 
 def program_exit(status: int):  # so we don't need to import the entire sys module
     log(f"exited program with error code {status}")
@@ -1161,8 +1170,10 @@ class WorkerThread(QThread):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("VALORANT rank yoinker")
+        self.setWindowTitle(WINDOW_TITLE)
         self.resize(1000, 500)
+        icon_path = resource_path("image.png")
+        self.setWindowIcon(QIcon(icon_path))
 
         main_layout = QVBoxLayout()
 
