@@ -106,11 +106,12 @@ class WorkerThread(QThread):
 
     def apply_config_update(self, new_config):
         global cfg, table
-        with self.config_lock:
-            for key, value in new_config.items():
-                if key in DEFAULT_CONFIG:
-                    setattr(cfg, key, value)
-            table = Table(cfg, log)
+        for key, value in new_config.items():
+            if key in DEFAULT_CONFIG:
+                setattr(cfg, key, value)
+        cfg.table = copy.deepcopy(new_config.get("table", cfg.table))
+        cfg.flags = copy.deepcopy(new_config.get("flags", cfg.flags))
+        table = Table(cfg, log)
 
     def run(self):
         global server, Wss, Requests
@@ -247,13 +248,11 @@ class WorkerThread(QThread):
         firstTime = True
         firstPrint = True
         while True:
-                pending_config = None
                 with self.config_lock:
                     if self.pending_config_update is not None:
                         pending_config = self.pending_config_update
                         self.pending_config_update = None
-                if pending_config is not None:
-                    self.apply_config_update(pending_config)
+                        self.apply_config_update(pending_config)
                 recently_met_rows = []
                 table.clear()
                 table.set_default_field_names()
@@ -504,9 +503,9 @@ class WorkerThread(QThread):
                                                         "times": times,
                                                         "name": curr_player_stat["name"],
                                                         "previous_agent": curr_player_stat["agent"],
-                                                            "current_agent": current_agent,
-                                                            "team": team_role,
-                                                            "time_diff": time.time()
+                                                        "current_agent": current_agent,
+                                                        "team": team_role,
+                                                        "time_diff": time.time()
                                                         - curr_player_stat["epoch"],
                                                     }
                                                 )
@@ -524,21 +523,21 @@ class WorkerThread(QThread):
                                                 )
                                                 already_played_with.append(
                                                     {
-                                                            "times": times,
-                                                            "name": agent_dict.get(
-                                                                player["CharacterID"].lower(),
-                                                                "Unknown",
-                                                            )
-                                                            + " on "
-                                                            + team_string
-                                                            + " team",
-                                                            "previous_agent": curr_player_stat["agent"],
-                                                            "current_agent": current_agent,
-                                                            "team": team_role,
-                                                            "time_diff": time.time()
-                                                            - curr_player_stat["epoch"],
-                                                        }
-                                                    )
+                                                        "times": times,
+                                                        "name": agent_dict.get(
+                                                            player["CharacterID"].lower(),
+                                                            "Unknown",
+                                                        )
+                                                        + " on "
+                                                        + team_string
+                                                        + " team",
+                                                        "previous_agent": curr_player_stat["agent"],
+                                                        "current_agent": current_agent,
+                                                        "team": team_role,
+                                                        "time_diff": time.time()
+                                                        - curr_player_stat["epoch"],
+                                                    }
+                                                )
 
                                     party_icon = ""
                                 # set party premade icon
