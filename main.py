@@ -102,13 +102,14 @@ class WorkerThread(QThread):
 
     def queue_config_update(self, new_config):
         with self.config_lock:
-            self.pending_config_update = new_config
+            self.pending_config_update = copy.deepcopy(new_config)
 
     def apply_config_update(self, new_config):
         global cfg, table
-        for key, value in new_config.items():
-            setattr(cfg, key, value)
-        table = Table(cfg, log)
+        with self.config_lock:
+            for key, value in new_config.items():
+                setattr(cfg, key, value)
+            table = Table(cfg, log)
 
     def run(self):
         global server, Wss, Requests
@@ -478,7 +479,7 @@ class WorkerThread(QThread):
                                                 # if curr_player_stat["match_id"] == coregame.match_id and len(stats_data[player["Subject"]]) > 1:
                                                 curr_player_stat = stats_data[player["Subject"]][-i]
                                             if curr_player_stat["match_id"] != coregame.match_id:
-                                                # checking for party memebers and self players
+                                                # checking for party members and self players
                                                 times = 0
                                                 m_set = ()
                                             for m in stats_data[player["Subject"]]:
@@ -1274,7 +1275,7 @@ class SettingsDialog(QDialog):
         self.setLayout(layout)
 
     def get_config(self):
-        new_config = dict(self.base_config)
+        new_config = copy.deepcopy(self.base_config)
         new_config["weapon"] = self.weapon_combo.currentText()
         new_config["chat_limit"] = int(self.chat_limit_spin.value())
         new_config["port"] = int(self.port_spin.value())
