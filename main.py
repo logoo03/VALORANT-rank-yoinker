@@ -1,4 +1,5 @@
 import asyncio
+import copy
 import json
 import os
 import socket
@@ -97,16 +98,16 @@ class WorkerThread(QThread):
         super().__init__()
         self.refresh_event = threading.Event()
         self.pending_config_update = None
+        self.config_lock = threading.Lock()
 
     def queue_config_update(self, new_config):
-        self.pending_config_update = new_config
+        with self.config_lock:
+            self.pending_config_update = new_config
 
     def apply_config_update(self, new_config):
         global cfg, table
         for key, value in new_config.items():
             setattr(cfg, key, value)
-        cfg.table = new_config.get("table", cfg.table)
-        cfg.flags = new_config.get("flags", cfg.flags)
         table = Table(cfg, log)
 
     def run(self):
@@ -244,9 +245,13 @@ class WorkerThread(QThread):
         firstTime = True
         firstPrint = True
         while True:
-                if self.pending_config_update is not None:
-                    self.apply_config_update(self.pending_config_update)
-                    self.pending_config_update = None
+                pending_config = None
+                with self.config_lock:
+                    if self.pending_config_update is not None:
+                        pending_config = self.pending_config_update
+                        self.pending_config_update = None
+                if pending_config is not None:
+                    self.apply_config_update(pending_config)
                 recently_met_rows = []
                 table.clear()
                 table.set_default_field_names()
@@ -476,13 +481,14 @@ class WorkerThread(QThread):
                                                 # checking for party memebers and self players
                                                 times = 0
                                                 m_set = ()
-                                                for m in stats_data[player["Subject"]]:
-                                                    if (
-                                                        m["match_id"] != coregame.match_id
-                                                        and m["match_id"] not in m_set
-                                                    ):
-                                                        times += 1
-                                                        m_set += (m["match_id"],)
+                                            for m in stats_data[player["Subject"]]:
+                                                if (
+                                                    m["match_id"] != coregame.match_id
+                                                    and m["match_id"] not in m_set
+                                                ):
+                                                    times += 1
+                                                    m_set += (m["match_id"],)
+                                            if player["PlayerIdentity"]["Incognito"] == False:
                                                 team_role = (
                                                     "Ally"
                                                     if player["TeamID"] == allyTeam
@@ -491,24 +497,31 @@ class WorkerThread(QThread):
                                                 current_agent = agent_dict.get(
                                                     player["CharacterID"].lower(), "Unknown"
                                                 )
-                                                if player["PlayerIdentity"]["Incognito"] == False:
-                                                    already_played_with.append(
-                                                        {
-                                                            "times": times,
-                                                            "name": curr_player_stat["name"],
-                                                            "previous_agent": curr_player_stat["agent"],
+                                                already_played_with.append(
+                                                    {
+                                                        "times": times,
+                                                        "name": curr_player_stat["name"],
+                                                        "previous_agent": curr_player_stat["agent"],
                                                             "current_agent": current_agent,
                                                             "team": team_role,
                                                             "time_diff": time.time()
-                                                            - curr_player_stat["epoch"],
-                                                        }
-                                                    )
-                                                else:
-                                                    team_string = (
-                                                        "your" if team_role == "Ally" else "enemy"
-                                                    )
-                                                    already_played_with.append(
-                                                        {
+                                                        - curr_player_stat["epoch"],
+                                                    }
+                                                )
+                                            else:
+                                                team_role = (
+                                                    "Ally"
+                                                    if player["TeamID"] == allyTeam
+                                                    else "Enemy"
+                                                )
+                                                current_agent = agent_dict.get(
+                                                    player["CharacterID"].lower(), "Unknown"
+                                                )
+                                                team_string = (
+                                                    "your" if team_role == "Ally" else "enemy"
+                                                )
+                                                already_played_with.append(
+                                                    {
                                                             "times": times,
                                                             "name": agent_dict.get(
                                                                 player["CharacterID"].lower(),
@@ -1444,7 +1457,8 @@ class MainWindow(QMainWindow):
             except json.JSONDecodeError:
                 config = {}
 
-        merged_config = DEFAULT_CONFIG | config
+        merged_config = copy.deepcopy(DEFAULT_CONFIG)
+        merged_config.update(config)
         merged_config["table"] = DEFAULT_CONFIG["table"] | config.get("table", {})
         merged_config["flags"] = DEFAULT_CONFIG["flags"] | config.get("flags", {})
         return merged_config
