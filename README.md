@@ -51,7 +51,7 @@
 2) `python setup.py build`
 3)  Open the new Build folder and find vRY.exe.
 
-> `-` You can change the desired weapon by editing the gun in `config.json`, or by deleting the file for vRY re-prompt you.
+> `-` You can change settings (including the weapon) from the in-app **Settings** button, or by editing `config.json`.
 
 > `-` View all skins: <https://vry.netlify.app/matchLoadouts>.
 

@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 import socket
 import sys
@@ -6,7 +7,7 @@ import time
 import traceback
 import threading
 
-from PyQt5.QtWidgets import QApplication, QMainWindow, QTextBrowser, QVBoxLayout, QWidget, QPushButton, QTabWidget, QTableWidget, QTableWidgetItem, QHBoxLayout, QHeaderView
+from PyQt5.QtWidgets import QApplication, QMainWindow, QTextBrowser, QVBoxLayout, QWidget, QPushButton, QTabWidget, QTableWidget, QTableWidgetItem, QHBoxLayout, QHeaderView, QDialog, QLabel, QComboBox, QCheckBox, QSpinBox, QFormLayout, QGroupBox, QDialogButtonBox, QProgressDialog
 from PyQt5.QtCore import QThread, pyqtSignal, Qt
 from PyQt5.QtGui import QIcon, QBrush, QColor
 from PyQt5.QtWidgets import QStyle
@@ -14,12 +15,10 @@ from PyQt5.QtWidgets import QStyle
 import requests
 import urllib3
 from colr import color as colr
-from InquirerPy import inquirer
 from rich.console import Console as RichConsole
 
 from src.colors import Colors
 from src.config import Config
-from src.configurator import configure
 from src.constants import *
 from src.content import Content
 from src.errors import Error
@@ -39,6 +38,7 @@ from src.stats import Stats
 from src.table import Table
 from src.websocket import Ws
 from src.os_info import get_os
+from src.questions import TABLE_OPTS, FLAGS_OPTS
 
 from src.account_manager.account_manager import AccountManager
 from src.account_manager.account_config import AccountConfig
@@ -85,35 +85,29 @@ log = Logging.log
 # OS Logging
 log(f"Operating system: {get_os()}\n")
 
-try:
-    if len(sys.argv) > 1 and sys.argv[1] == "--config":
-        configure()
-        run_app = inquirer.confirm(
-            message="Do you want to run vRY now?", default=True
-        ).execute()
-        if run_app:
-            os.system("cls")
-        else:
-            os._exit(0)
-    else:
-        os.system("cls")
-except Exception as e:
-    print("Something went wrong while runn  ing configurator!")
-    log(f"configurator encountered an error")
-    log(str(traceback.format_exc()))
-    input("press enter to exit...\n")
-    os._exit(1)
-
-
 # Moved to WorkerThread
 
 
 class WorkerThread(QThread):
     update_table = pyqtSignal(dict)
+    update_recently_met = pyqtSignal(list)
+    loading_status = pyqtSignal(bool, str)
 
     def __init__(self):
         super().__init__()
         self.refresh_event = threading.Event()
+        self.pending_config_update = None
+
+    def queue_config_update(self, new_config):
+        self.pending_config_update = new_config
+
+    def apply_config_update(self, new_config):
+        global cfg, table
+        for key, value in new_config.items():
+            setattr(cfg, key, value)
+        cfg.table = new_config.get("table", cfg.table)
+        cfg.flags = new_config.get("flags", cfg.flags)
+        table = Table(cfg, log)
 
     def run(self):
         global server, Wss, Requests
@@ -250,6 +244,10 @@ class WorkerThread(QThread):
         firstTime = True
         firstPrint = True
         while True:
+                if self.pending_config_update is not None:
+                    self.apply_config_update(self.pending_config_update)
+                    self.pending_config_update = None
+                recently_met_rows = []
                 table.clear()
                 table.set_default_field_names()
                 table.reset_runtime_col_flags()
@@ -429,92 +427,105 @@ class WorkerThread(QThread):
                         playersLoaded = 1
 
                         heartbeat_data["map"] = (map_urls[coregame_stats["MapID"].lower()],)
+                        self.loading_status.emit(True, "Loading player stats...")
                         with richConsole.status("Loading Players...") as status:
-                            partyOBJ = menu.get_party_json(
-                                namesClass.get_players_puuid(Players), presence
-                            )
-                            # log(f"retrieved names dict: {names}")
-                            Players.sort(
-                                key=lambda Players: Players["PlayerIdentity"].get(
-                                    "AccountLevel"
-                                ),
-                                reverse=True,
-                            )
-                            Players.sort(key=lambda Players: Players["TeamID"], reverse=True)
-                            partyCount = 0
-                            partyNum = 0
-                            partyIcons = {}
-                            lastTeamBoolean = False
-                            lastTeam = "Red"
-
-                            already_played_with = []
-                            stats_data = stats.read_data()
-
-                            for p in Players:
-                                if p["Subject"] == Requests.puuid:
-                                    allyTeam = p["TeamID"]
-                            for player in Players:
-                                status.update(
-                                    f"Loading players... [{playersLoaded}/{len(Players)}]"
+                                partyOBJ = menu.get_party_json(
+                                    namesClass.get_players_puuid(Players), presence
                                 )
-                                playersLoaded += 1
+                                # log(f"retrieved names dict: {names}")
+                                Players.sort(
+                                    key=lambda Players: Players["PlayerIdentity"].get(
+                                        "AccountLevel"
+                                    ),
+                                    reverse=True,
+                                )
+                                Players.sort(key=lambda Players: Players["TeamID"], reverse=True)
+                                partyCount = 0
+                                partyNum = 0
+                                partyIcons = {}
+                                lastTeamBoolean = False
+                                lastTeam = "Red"
 
-                                if player["Subject"] in stats_data.keys():
-                                    if (
-                                        player["Subject"] != Requests.puuid
-                                        and player["Subject"] not in partyMembersList
-                                    ):
-                                        curr_player_stat = stats_data[player["Subject"]][-1]
-                                        i = 1
-                                        while (
-                                            curr_player_stat["match_id"] == coregame.match_id
-                                            and len(stats_data[player["Subject"]]) > i
+                                already_played_with = []
+                                stats_data = stats.read_data()
+
+                                for p in Players:
+                                    if p["Subject"] == Requests.puuid:
+                                        allyTeam = p["TeamID"]
+                                for player in Players:
+                                    status.update(
+                                        f"Loading players... [{playersLoaded}/{len(Players)}]"
+                                    )
+                                    playersLoaded += 1
+
+                                    if player["Subject"] in stats_data.keys():
+                                        if (
+                                            player["Subject"] != Requests.puuid
+                                            and player["Subject"] not in partyMembersList
                                         ):
-                                            i += 1
-                                            # if curr_player_stat["match_id"] == coregame.match_id and len(stats_data[player["Subject"]]) > 1:
-                                            curr_player_stat = stats_data[player["Subject"]][-i]
-                                        if curr_player_stat["match_id"] != coregame.match_id:
-                                            # checking for party memebers and self players
-                                            times = 0
-                                            m_set = ()
-                                            for m in stats_data[player["Subject"]]:
-                                                if (
-                                                    m["match_id"] != coregame.match_id
-                                                    and m["match_id"] not in m_set
-                                                ):
-                                                    times += 1
-                                                    m_set += (m["match_id"],)
-                                            if player["PlayerIdentity"]["Incognito"] == False:
-                                                already_played_with.append(
-                                                    {
-                                                        "times": times,
-                                                        "name": curr_player_stat["name"],
-                                                        "agent": curr_player_stat["agent"],
-                                                        "time_diff": time.time()
-                                                        - curr_player_stat["epoch"],
-                                                    }
+                                            curr_player_stat = stats_data[player["Subject"]][-1]
+                                            i = 1
+                                            while (
+                                                curr_player_stat["match_id"] == coregame.match_id
+                                                and len(stats_data[player["Subject"]]) > i
+                                            ):
+                                                i += 1
+                                                # if curr_player_stat["match_id"] == coregame.match_id and len(stats_data[player["Subject"]]) > 1:
+                                                curr_player_stat = stats_data[player["Subject"]][-i]
+                                            if curr_player_stat["match_id"] != coregame.match_id:
+                                                # checking for party memebers and self players
+                                                times = 0
+                                                m_set = ()
+                                                for m in stats_data[player["Subject"]]:
+                                                    if (
+                                                        m["match_id"] != coregame.match_id
+                                                        and m["match_id"] not in m_set
+                                                    ):
+                                                        times += 1
+                                                        m_set += (m["match_id"],)
+                                                team_role = (
+                                                    "Ally"
+                                                    if player["TeamID"] == allyTeam
+                                                    else "Enemy"
                                                 )
-                                            else:
-                                                if player["TeamID"] == allyTeam:
-                                                    team_string = "your"
+                                                current_agent = agent_dict.get(
+                                                    player["CharacterID"].lower(), "Unknown"
+                                                )
+                                                if player["PlayerIdentity"]["Incognito"] == False:
+                                                    already_played_with.append(
+                                                        {
+                                                            "times": times,
+                                                            "name": curr_player_stat["name"],
+                                                            "previous_agent": curr_player_stat["agent"],
+                                                            "current_agent": current_agent,
+                                                            "team": team_role,
+                                                            "time_diff": time.time()
+                                                            - curr_player_stat["epoch"],
+                                                        }
+                                                    )
                                                 else:
-                                                    team_string = "enemy"
-                                                already_played_with.append(
-                                                    {
-                                                        "times": times,
-                                                        "name": agent_dict.get(
-                                                            player["CharacterID"].lower(), "Unknown"
-                                                        )
-                                                        + " on "
-                                                        + team_string
-                                                        + " team",
-                                                        "agent": curr_player_stat["agent"],
-                                                        "time_diff": time.time()
-                                                        - curr_player_stat["epoch"],
-                                                    }
-                                                )
+                                                    team_string = (
+                                                        "your" if team_role == "Ally" else "enemy"
+                                                    )
+                                                    already_played_with.append(
+                                                        {
+                                                            "times": times,
+                                                            "name": agent_dict.get(
+                                                                player["CharacterID"].lower(),
+                                                                "Unknown",
+                                                            )
+                                                            + " on "
+                                                            + team_string
+                                                            + " team",
+                                                            "previous_agent": curr_player_stat["agent"],
+                                                            "current_agent": current_agent,
+                                                            "team": team_role,
+                                                            "time_diff": time.time()
+                                                            - curr_player_stat["epoch"],
+                                                        }
+                                                    )
 
-                                party_icon = ""
+                                    party_icon = ""
                                 # set party premade icon
                                 for party in partyOBJ:
                                     if player["Subject"] in partyOBJ[party]:
@@ -724,6 +735,21 @@ class WorkerThread(QThread):
                                     }
                                 )
                                 # bar()
+                        self.loading_status.emit(False, "")
+                        if cfg.get_feature_flag("last_played"):
+                            recently_met_rows = [
+                                {
+                                    "player": played["name"],
+                                    "team": played["team"],
+                                    "previous_agent": played["previous_agent"],
+                                    "current_agent": played["current_agent"],
+                                    "last_met": f"{stats.convert_time(played['time_diff'])} ago",
+                                    "times": played["times"],
+                                }
+                                for played in already_played_with
+                            ]
+                        else:
+                            recently_met_rows = []
                     elif game_state == "PREGAME":
                         already_played_with = []
                         pregame_stats = pregame.get_pregame_stats()
@@ -739,6 +765,7 @@ class WorkerThread(QThread):
                         # loadouts = loadoutsClass.get_match_loadouts(pregame.get_pregame_match_id(), pregame_stats, cfg.weapon, valoApiSkins, names,
                         #   state="pregame")
                         playersLoaded = 1
+                        self.loading_status.emit(True, "Loading player stats...")
                         with richConsole.status("Loading Players...") as status:
                             # with alive_bar(total=len(Players), title='Fetching Players', bar='classic2') as bar:
                             presence = presences.get_presence()
@@ -948,6 +975,7 @@ class WorkerThread(QThread):
                                 }
 
                                 # bar()
+                        self.loading_status.emit(False, "")
                     if game_state == "MENUS":
                         reset_match_player_cache()
                         if hasattr(pstats, "clear_runtime_cache"):
@@ -958,6 +986,7 @@ class WorkerThread(QThread):
                         Players = menu.get_party_members(Requests.puuid, presence)
                         names = namesClass.get_names_from_puuids(Players)
                         playersLoaded = 1
+                        self.loading_status.emit(True, "Loading player stats...")
                         with richConsole.status("Loading Players...") as status:
                             # with alive_bar(total=len(Players), title='Fetching Players', bar='classic2') as bar:
                             # log(f"retrieved names dict: {names}")
@@ -1100,6 +1129,7 @@ class WorkerThread(QThread):
 
                                     # bar()
                             seen.append(player["Subject"])
+                        self.loading_status.emit(False, "")
                     if (title := game_state_dict.get(game_state)) is None:
                         # program_exit(1)
                         time.sleep(9)
@@ -1143,6 +1173,7 @@ class WorkerThread(QThread):
                         Server_inst.send_payload("heartbeat", heartbeat_data)
                         table.display()
                         self.update_table.emit(table.raw_data)
+                        self.update_recently_met.emit(recently_met_rows)
                         firstPrint = False
 
                         # print(f"VALORANT rank yoinker v{version}")
@@ -1151,7 +1182,7 @@ class WorkerThread(QThread):
                                 print("\n")
                                 for played in already_played_with:
                                     print(
-                                        f"Already played with {played['name']} (last {played['agent']}) {stats.convert_time(played['time_diff'])} ago. (Total played {played['times']} times)"
+                                        f"Already played with {played['name']} (last {played['previous_agent']}) {stats.convert_time(played['time_diff'])} ago. (Total played {played['times']} times)"
                                     )
                         already_played_with = []
                 if cfg.cooldown == 0:
@@ -1167,11 +1198,91 @@ class WorkerThread(QThread):
                         pstats.clear_runtime_cache()
 
 
+class SettingsDialog(QDialog):
+    def __init__(self, config, parent=None):
+        super().__init__(parent)
+        self.base_config = config
+        self.setWindowTitle("Settings")
+        self.setMinimumSize(500, 650)
+
+        layout = QVBoxLayout()
+
+        form_layout = QFormLayout()
+        self.weapon_combo = QComboBox()
+        self.weapon_combo.addItems(WEAPONS)
+        self.weapon_combo.setCurrentText(
+            config.get("weapon", DEFAULT_CONFIG["weapon"])
+        )
+        form_layout.addRow("Weapon", self.weapon_combo)
+
+        self.chat_limit_spin = QSpinBox()
+        self.chat_limit_spin.setRange(0, 100)
+        self.chat_limit_spin.setValue(
+            int(config.get("chat_limit", DEFAULT_CONFIG["chat_limit"]))
+        )
+        form_layout.addRow("Chat history length", self.chat_limit_spin)
+
+        self.port_spin = QSpinBox()
+        self.port_spin.setRange(0, 65535)
+        self.port_spin.setValue(int(config.get("port", DEFAULT_CONFIG["port"])))
+        form_layout.addRow("Server port", self.port_spin)
+
+        layout.addLayout(form_layout)
+
+        table_group = QGroupBox("Table Columns")
+        table_layout = QVBoxLayout()
+        self.table_checks = {}
+        table_config = config.get("table", DEFAULT_CONFIG["table"])
+        for key, label in TABLE_OPTS.items():
+            checkbox = QCheckBox(label)
+            checkbox.setChecked(table_config.get(key, DEFAULT_CONFIG["table"][key]))
+            table_layout.addWidget(checkbox)
+            self.table_checks[key] = checkbox
+        table_group.setLayout(table_layout)
+        layout.addWidget(table_group)
+
+        flags_group = QGroupBox("Feature Flags")
+        flags_layout = QVBoxLayout()
+        self.flags_checks = {}
+        flags_config = config.get("flags", DEFAULT_CONFIG["flags"])
+        for key, label in FLAGS_OPTS.items():
+            checkbox = QCheckBox(label)
+            checkbox.setChecked(flags_config.get(key, DEFAULT_CONFIG["flags"][key]))
+            flags_layout.addWidget(checkbox)
+            self.flags_checks[key] = checkbox
+        flags_group.setLayout(flags_layout)
+        layout.addWidget(flags_group)
+
+        button_box = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
+        button_box.accepted.connect(self.accept)
+        button_box.rejected.connect(self.reject)
+        layout.addWidget(button_box)
+
+        self.setLayout(layout)
+
+    def get_config(self):
+        new_config = dict(self.base_config)
+        new_config["weapon"] = self.weapon_combo.currentText()
+        new_config["chat_limit"] = int(self.chat_limit_spin.value())
+        new_config["port"] = int(self.port_spin.value())
+
+        table_config = dict(new_config.get("table", {}))
+        for key, checkbox in self.table_checks.items():
+            table_config[key] = checkbox.isChecked()
+        new_config["table"] = table_config
+
+        flags_config = dict(new_config.get("flags", {}))
+        for key, checkbox in self.flags_checks.items():
+            flags_config[key] = checkbox.isChecked()
+        new_config["flags"] = flags_config
+        return new_config
+
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle(WINDOW_TITLE)
-        self.resize(1000, 500)
+        self.resize(1000, 700)
         icon_path = resource_path("image.png")
         self.setWindowIcon(QIcon(icon_path))
 
@@ -1185,6 +1296,13 @@ class MainWindow(QMainWindow):
         self.refresh_button.clicked.connect(self.manual_refresh)
         top_layout.addWidget(self.refresh_button)
 
+        self.settings_button = QPushButton("Settings")
+        self.settings_button.setIcon(
+            self.style().standardIcon(QStyle.SP_FileDialogDetailedView)
+        )
+        self.settings_button.clicked.connect(self.open_settings)
+        top_layout.addWidget(self.settings_button)
+
         main_layout.addLayout(top_layout)
 
         self.live_table = QTableWidget()
@@ -1196,12 +1314,33 @@ class MainWindow(QMainWindow):
 
         main_layout.addWidget(self.live_table)
 
+        self.recent_label = QLabel("Recently met players")
+        self.recent_label.setStyleSheet("color: #FFFFFF; font-size: 14px; font-weight: 700;")
+        main_layout.addWidget(self.recent_label)
+
+        self.recent_table = QTableWidget()
+        self.recent_table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.recent_table.verticalHeader().setVisible(False)
+        self.recent_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.recent_table.setStyleSheet("background-color: #121212; color: #FFFFFF; font-size: 13px; font-weight: 600; font-family: 'Malgun Gothic'; gridline-color: #fff;")
+        self.recent_table.horizontalHeader().setStyleSheet("background-color: #121212; color: #000")
+        main_layout.addWidget(self.recent_table)
+
         container = QWidget()
         container.setLayout(main_layout)
         self.setCentralWidget(container)
 
         self.worker = WorkerThread()
         self.worker.update_table.connect(self.update_live_table)
+        self.worker.update_recently_met.connect(self.update_recently_met_table)
+        self.worker.loading_status.connect(self.update_loading_status)
+        self.loading_dialog = QProgressDialog("Loading player stats...", None, 0, 0, self)
+        self.loading_dialog.setWindowTitle("Loading")
+        self.loading_dialog.setCancelButton(None)
+        self.loading_dialog.setWindowModality(Qt.ApplicationModal)
+        self.loading_dialog.setMinimumDuration(0)
+        self.loading_dialog.hide()
+
         self.worker.start()
 
     def update_live_table(self, data):
@@ -1245,6 +1384,74 @@ class MainWindow(QMainWindow):
         #     rank_idx = headers.index("Rank")
         #     header.setSectionResizeMode(rank_idx, QHeaderView.ResizeToContents)
         #     # self.live_table.setColumnWidth(rank_idx, 50)
+
+    def update_recently_met_table(self, players):
+        headers = [
+            "Player",
+            "Ally/Enemy",
+            "Previous Agent",
+            "Current Agent",
+            "Last Met",
+            "Times Met",
+        ]
+        self.recent_table.clear()
+        self.recent_table.setColumnCount(len(headers))
+        self.recent_table.setHorizontalHeaderLabels(headers)
+        self.recent_table.setRowCount(len(players))
+
+        for row_idx, player in enumerate(players):
+            values = [
+                player.get("player", ""),
+                player.get("team", ""),
+                player.get("previous_agent", ""),
+                player.get("current_agent", ""),
+                player.get("last_met", ""),
+                str(player.get("times", "")),
+            ]
+            for col_idx, value in enumerate(values):
+                item = QTableWidgetItem(value)
+                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.recent_table.setItem(row_idx, col_idx, item)
+
+        header = self.recent_table.horizontalHeader()
+        for idx in range(len(headers)):
+            header.setSectionResizeMode(idx, QHeaderView.ResizeToContents)
+        if "Player" in headers:
+            header.setSectionResizeMode(headers.index("Player"), QHeaderView.Stretch)
+
+    def update_loading_status(self, is_loading, message):
+        if is_loading:
+            self.loading_dialog.setLabelText(message or "Loading player stats...")
+            self.loading_dialog.show()
+        else:
+            self.loading_dialog.hide()
+
+    def open_settings(self):
+        config = self.load_config()
+        dialog = SettingsDialog(config, self)
+        if dialog.exec_() == QDialog.Accepted:
+            new_config = dialog.get_config()
+            self.save_config(new_config)
+            self.worker.queue_config_update(new_config)
+            self.worker.refresh_event.set()
+
+    def load_config(self):
+        config = {}
+        if os.path.exists("config.json"):
+            try:
+                with open("config.json", "r") as file:
+                    config = json.load(file)
+            except json.JSONDecodeError:
+                config = {}
+
+        merged_config = DEFAULT_CONFIG | config
+        merged_config["table"] = DEFAULT_CONFIG["table"] | config.get("table", {})
+        merged_config["flags"] = DEFAULT_CONFIG["flags"] | config.get("flags", {})
+        return merged_config
+
+    def save_config(self, config):
+        with open("config.json", "w") as file:
+            json.dump(config, file, indent=4)
 
     def manual_refresh(self):
         self.worker.refresh_event.set()
