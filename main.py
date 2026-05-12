@@ -98,8 +98,7 @@ class WorkerThread(QThread):
         super().__init__()
         self.refresh_event = threading.Event()
         self.config_lock = threading.Lock()
-        with self.config_lock:
-            self.pending_config_update = None
+        self.pending_config_update = None
 
     def queue_config_update(self, new_config):
         with self.config_lock:
@@ -1462,8 +1461,14 @@ class MainWindow(QMainWindow):
 
         merged_config = copy.deepcopy(DEFAULT_CONFIG)
         merged_config.update(config)
-        merged_config["table"] = DEFAULT_CONFIG["table"] | config.get("table", {})
-        merged_config["flags"] = DEFAULT_CONFIG["flags"] | config.get("flags", {})
+        merged_config["table"] = {
+            **DEFAULT_CONFIG["table"],
+            **config.get("table", {}),
+        }
+        merged_config["flags"] = {
+            **DEFAULT_CONFIG["flags"],
+            **config.get("flags", {}),
+        }
         return merged_config
 
     def save_config(self, config):
