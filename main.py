@@ -97,8 +97,9 @@ class WorkerThread(QThread):
     def __init__(self):
         super().__init__()
         self.refresh_event = threading.Event()
-        self.pending_config_update = None
         self.config_lock = threading.Lock()
+        with self.config_lock:
+            self.pending_config_update = None
 
     def queue_config_update(self, new_config):
         with self.config_lock:
@@ -108,7 +109,8 @@ class WorkerThread(QThread):
         global cfg, table
         with self.config_lock:
             for key, value in new_config.items():
-                setattr(cfg, key, value)
+                if key in DEFAULT_CONFIG:
+                    setattr(cfg, key, value)
             table = Table(cfg, log)
 
     def run(self):
@@ -1324,7 +1326,7 @@ class MainWindow(QMainWindow):
         self.live_table.verticalHeader().setVisible(False)
         self.live_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.live_table.setStyleSheet("background-color: #121212; color: #FFFFFF; font-size: 14px; font-weight: 700; font-family: 'Malgun Gothic'; gridline-color: #fff;") #border: 2px solid #fff;
-        self.live_table.horizontalHeader().setStyleSheet("background-color: #121212; color: #000")
+        self.live_table.horizontalHeader().setStyleSheet("background-color: #121212; color: #FFFFFF")
 
         main_layout.addWidget(self.live_table)
 
@@ -1337,7 +1339,7 @@ class MainWindow(QMainWindow):
         self.recent_table.verticalHeader().setVisible(False)
         self.recent_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.recent_table.setStyleSheet("background-color: #121212; color: #FFFFFF; font-size: 13px; font-weight: 600; font-family: 'Malgun Gothic'; gridline-color: #fff;")
-        self.recent_table.horizontalHeader().setStyleSheet("background-color: #121212; color: #000")
+        self.recent_table.horizontalHeader().setStyleSheet("background-color: #121212; color: #FFFFFF")
         main_layout.addWidget(self.recent_table)
 
         container = QWidget()
