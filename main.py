@@ -46,7 +46,7 @@ from src.account_manager.account_auth import AccountAuth
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-WINDOW_TITLE = '쭈니곤듀의 발로란트 도우미 ><'
+WINDOW_TITLE = 'Hyoinker v1.0'
 
 os.system(f"title {WINDOW_TITLE}")
 
@@ -1315,6 +1315,7 @@ class MainWindow(QMainWindow):
         self.live_table = QTableWidget()
         self.live_table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.live_table.verticalHeader().setVisible(False)
+        self.live_table.setFixedHeight(360)
         self.live_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.live_table.setStyleSheet("background-color: #121212; color: #FFFFFF; font-size: 14px; font-weight: 700; font-family: 'Malgun Gothic'; gridline-color: #fff;") #border: 2px solid #fff;
         self.live_table.horizontalHeader().setStyleSheet("background-color: #121212; color: #000")
@@ -1336,8 +1337,9 @@ class MainWindow(QMainWindow):
         self.recent_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.recent_table.setStyleSheet("background-color: #121212; color: #FFFFFF; font-size: 14px; font-weight: 700; font-family: 'Malgun Gothic'; gridline-color: #fff;")
         self.recent_table.horizontalHeader().setStyleSheet("background-color: #121212; color: #000")
+        self.recent_table.setFixedHeight(180)
 
-        main_layout.addWidget(QLabel("Recently Met Players", styleSheet="color: #FFFFFF; font-weight: bold; font-size: 16px; margin-top: 10px;"))
+        main_layout.addWidget(QLabel("Recent Players", styleSheet="color: #000000; font-weight: bold; font-size: 16px; margin-top: 10px;"))
         main_layout.addWidget(self.recent_table)
 
         container = QWidget()
