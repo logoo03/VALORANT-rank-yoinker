@@ -6,7 +6,7 @@ import time
 import traceback
 import threading
 
-from PyQt5.QtWidgets import QApplication, QMainWindow, QTextBrowser, QVBoxLayout, QWidget, QPushButton, QTabWidget, QTableWidget, QTableWidgetItem, QHBoxLayout, QHeaderView
+from PyQt5.QtWidgets import QApplication, QMainWindow, QTextBrowser, QVBoxLayout, QWidget, QPushButton, QTabWidget, QTableWidget, QTableWidgetItem, QHBoxLayout, QHeaderView, QDialog, QFormLayout, QSpinBox, QLineEdit, QCheckBox, QProgressBar, QLabel
 from PyQt5.QtCore import QThread, pyqtSignal, Qt
 from PyQt5.QtGui import QIcon, QBrush, QColor
 from PyQt5.QtWidgets import QStyle
@@ -110,6 +110,8 @@ except Exception as e:
 
 class WorkerThread(QThread):
     update_table = pyqtSignal(dict)
+    update_progress = pyqtSignal(str, int, int)
+    update_recent_table = pyqtSignal(list)
 
     def __init__(self):
         super().__init__()
@@ -457,6 +459,7 @@ class WorkerThread(QThread):
                                 status.update(
                                     f"Loading players... [{playersLoaded}/{len(Players)}]"
                                 )
+                                self.update_progress.emit(f"Loading players... [{playersLoaded}/{len(Players)}]", playersLoaded, len(Players))
                                 playersLoaded += 1
 
                                 if player["Subject"] in stats_data.keys():
@@ -490,6 +493,7 @@ class WorkerThread(QThread):
                                                         "times": times,
                                                         "name": curr_player_stat["name"],
                                                         "agent": curr_player_stat["agent"],
+                                                        "map": curr_player_stat.get("map", "Unknown"),
                                                         "time_diff": time.time()
                                                         - curr_player_stat["epoch"],
                                                     }
@@ -509,6 +513,7 @@ class WorkerThread(QThread):
                                                         + team_string
                                                         + " team",
                                                         "agent": curr_player_stat["agent"],
+                                                        "map": curr_player_stat.get("map", "Unknown"),
                                                         "time_diff": time.time()
                                                         - curr_player_stat["epoch"],
                                                     }
@@ -760,6 +765,7 @@ class WorkerThread(QThread):
                                 status.update(
                                     f"Loading players... [{playersLoaded}/{len(Players)}]"
                                 )
+                                self.update_progress.emit(f"Loading players... [{playersLoaded}/{len(Players)}]", playersLoaded, len(Players))
                                 playersLoaded += 1
                                 party_icon = ""
 
@@ -974,6 +980,7 @@ class WorkerThread(QThread):
                                     status.update(
                                         f"Loading players... [{playersLoaded}/{len(Players)}]"
                                     )
+                                    self.update_progress.emit(f"Loading players... [{playersLoaded}/{len(Players)}]", playersLoaded, len(Players))
                                     playersLoaded += 1
                                     party_icon = PARTYICONLIST[0]
                                     playerRank = rank.get_rank(player["Subject"], seasonID)
@@ -1147,6 +1154,7 @@ class WorkerThread(QThread):
 
                         # print(f"VALORANT rank yoinker v{version}")
                         if cfg.get_feature_flag("last_played"):
+                            self.update_recent_table.emit(already_played_with)
                             if len(already_played_with) > 0:
                                 print("\n")
                                 for played in already_played_with:
@@ -1167,6 +1175,118 @@ class WorkerThread(QThread):
                         pstats.clear_runtime_cache()
 
 
+
+class SettingsDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Settings")
+        self.resize(400, 300)
+
+        self.config_path = "config.json"
+        self.config = self.load_config()
+
+        layout = QVBoxLayout()
+        self.tabs = QTabWidget()
+
+        self.general_tab = QWidget()
+        self.table_tab = QWidget()
+        self.flags_tab = QWidget()
+
+        self.setup_general_tab()
+        self.setup_table_tab()
+        self.setup_flags_tab()
+
+        self.tabs.addTab(self.general_tab, "General")
+        self.tabs.addTab(self.table_tab, "Table")
+        self.tabs.addTab(self.flags_tab, "Flags")
+
+        layout.addWidget(self.tabs)
+
+        btn_layout = QHBoxLayout()
+        save_btn = QPushButton("Save")
+        save_btn.clicked.connect(self.save_config)
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(self.reject)
+
+        btn_layout.addStretch()
+        btn_layout.addWidget(save_btn)
+        btn_layout.addWidget(cancel_btn)
+
+        layout.addLayout(btn_layout)
+        self.setLayout(layout)
+
+    def load_config(self):
+        import json
+        try:
+            with open(self.config_path, "r") as f:
+                return json.load(f)
+        except:
+            return {
+                "cooldown": 10, "port": 1100, "weapon": "Vandal", "chat_limit": 5,
+                "table": {}, "flags": {}
+            }
+
+    def setup_general_tab(self):
+        layout = QFormLayout()
+
+        self.cooldown_spin = QSpinBox()
+        self.cooldown_spin.setValue(self.config.get("cooldown", 10))
+        layout.addRow("Cooldown:", self.cooldown_spin)
+
+        self.port_spin = QSpinBox()
+        self.port_spin.setMaximum(65535)
+        self.port_spin.setValue(self.config.get("port", 1100))
+        layout.addRow("Port:", self.port_spin)
+
+        self.weapon_edit = QLineEdit()
+        self.weapon_edit.setText(self.config.get("weapon", "Vandal"))
+        layout.addRow("Weapon:", self.weapon_edit)
+
+        self.chat_limit_spin = QSpinBox()
+        self.chat_limit_spin.setValue(self.config.get("chat_limit", 5))
+        layout.addRow("Chat Limit:", self.chat_limit_spin)
+
+        self.general_tab.setLayout(layout)
+
+    def setup_table_tab(self):
+        layout = QVBoxLayout()
+        self.table_checks = {}
+        table_config = self.config.get("table", {})
+        for key, val in table_config.items():
+            chk = QCheckBox(key)
+            chk.setChecked(bool(val))
+            self.table_checks[key] = chk
+            layout.addWidget(chk)
+        self.table_tab.setLayout(layout)
+
+    def setup_flags_tab(self):
+        layout = QVBoxLayout()
+        self.flag_checks = {}
+        flags_config = self.config.get("flags", {})
+        for key, val in flags_config.items():
+            chk = QCheckBox(key)
+            chk.setChecked(bool(val))
+            self.flag_checks[key] = chk
+            layout.addWidget(chk)
+        self.flags_tab.setLayout(layout)
+
+    def save_config(self):
+        import json
+        self.config["cooldown"] = self.cooldown_spin.value()
+        self.config["port"] = self.port_spin.value()
+        self.config["weapon"] = self.weapon_edit.text()
+        self.config["chat_limit"] = self.chat_limit_spin.value()
+
+        for key, chk in self.table_checks.items():
+            self.config["table"][key] = chk.isChecked()
+
+        for key, chk in self.flag_checks.items():
+            self.config["flags"][key] = chk.isChecked()
+
+        with open(self.config_path, "w") as f:
+            json.dump(self.config, f, indent=4)
+        self.accept()
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -1185,6 +1305,11 @@ class MainWindow(QMainWindow):
         self.refresh_button.clicked.connect(self.manual_refresh)
         top_layout.addWidget(self.refresh_button)
 
+        self.settings_button = QPushButton("Settings")
+        self.settings_button.setIcon(self.style().standardIcon(QStyle.SP_FileDialogDetailedView))
+        self.settings_button.clicked.connect(self.open_settings)
+        top_layout.addWidget(self.settings_button)
+
         main_layout.addLayout(top_layout)
 
         self.live_table = QTableWidget()
@@ -1196,12 +1321,33 @@ class MainWindow(QMainWindow):
 
         main_layout.addWidget(self.live_table)
 
+        self.progress_label = QLabel("")
+        self.progress_label.setVisible(False)
+        self.progress_label.setStyleSheet("color: #FFFFFF; font-weight: bold; font-size: 14px;")
+        main_layout.addWidget(self.progress_label)
+
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setVisible(False)
+        main_layout.addWidget(self.progress_bar)
+
+        self.recent_table = QTableWidget()
+        self.recent_table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.recent_table.verticalHeader().setVisible(False)
+        self.recent_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.recent_table.setStyleSheet("background-color: #121212; color: #FFFFFF; font-size: 14px; font-weight: 700; font-family: 'Malgun Gothic'; gridline-color: #fff;")
+        self.recent_table.horizontalHeader().setStyleSheet("background-color: #121212; color: #000")
+
+        main_layout.addWidget(QLabel("Recently Met Players", styleSheet="color: #FFFFFF; font-weight: bold; font-size: 16px; margin-top: 10px;"))
+        main_layout.addWidget(self.recent_table)
+
         container = QWidget()
         container.setLayout(main_layout)
         self.setCentralWidget(container)
 
         self.worker = WorkerThread()
         self.worker.update_table.connect(self.update_live_table)
+        self.worker.update_progress.connect(self.update_progress)
+        self.worker.update_recent_table.connect(self.update_recent_table_ui)
         self.worker.start()
 
     def update_live_table(self, data):
@@ -1248,6 +1394,57 @@ class MainWindow(QMainWindow):
 
     def manual_refresh(self):
         self.worker.refresh_event.set()
+
+    def update_progress(self, text, current, total):
+        if not self.progress_bar.isVisible():
+            self.progress_bar.setVisible(True)
+            self.progress_label.setVisible(True)
+
+        self.progress_label.setText(text)
+        self.progress_bar.setMaximum(total)
+        self.progress_bar.setValue(current)
+
+        if current >= total:
+            self.progress_bar.setVisible(False)
+            self.progress_label.setVisible(False)
+
+    def update_recent_table_ui(self, recent_data):
+        headers = ["Name", "Last Agent", "Map", "Time Ago", "Times Met"]
+        self.recent_table.clear()
+        self.recent_table.setColumnCount(len(headers))
+        self.recent_table.setHorizontalHeaderLabels(headers)
+        self.recent_table.setRowCount(len(recent_data))
+
+        from src.stats import Stats
+        stats = Stats()
+
+        for row_idx, row_data in enumerate(recent_data):
+            items = [
+                row_data.get("name", "Unknown"),
+                row_data.get("agent", "Unknown"),
+                row_data.get("map", "Unknown"),
+                stats.convert_time(row_data.get("time_diff", 0)),
+                str(row_data.get("times", 0))
+            ]
+            for col_idx, text in enumerate(items):
+                item = QTableWidgetItem(text)
+                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.recent_table.setItem(row_idx, col_idx, item)
+
+    def open_settings(self):
+        dialog = SettingsDialog(self)
+        if dialog.exec_():
+            global cfg
+            import json
+            try:
+                with open("config.json", "r") as f:
+                    new_config = json.load(f)
+                    for k, v in new_config.items():
+                        if hasattr(cfg, k):
+                            setattr(cfg, k, v)
+            except Exception as e:
+                pass
+            self.manual_refresh()
 
 def main_gui():
     app = QApplication(sys.argv)
