@@ -47,7 +47,7 @@ class Table:
         self.config = config
         self.rich_table = RichTable()
         self.col_flags = [
-            True,  # Party
+            False,  # Party
             True,  # Agent
             True,  # Name
             bool(config.table.get("skin", True)),  # Skin
@@ -82,7 +82,10 @@ class Table:
         self.field_names = [
             c for c, i in zip(self.field_names_candidates, self.col_flags) if i
         ]
-        self.console = RichConsole(color_system="truecolor")
+        self.console = RichConsole(color_system="truecolor", record=True)
+        self.html_output = ""
+        self.raw_data = {"headers": [], "rows": []}
+
 
         # only to get init value not used
         self.overall_col_flags = [
@@ -114,7 +117,7 @@ class Table:
     def add_row_table(self, args: list):
         # row = [c for c, i in zip(args, self.col_flags) if i]
         # row = [self.ansi_to_console(str(i)) for i in row]
-        self.rows.append(zip(self.field_names_candidates, args))
+        self.rows.append(list(zip(self.field_names_candidates, args)))
 
         # self.rich_table.add_row(*row)
 
@@ -122,7 +125,7 @@ class Table:
         # empty_row = [""] * sum(self.col_flags)
         # self.rich_table.add_row(*empty_row)
         self.rows.append(
-            zip(self.field_names_candidates, "" * len(self.field_names_candidates))
+            list(zip(self.field_names_candidates, [""] * len(self.field_names_candidates)))
         )
 
     def apply_rows(self):
@@ -145,12 +148,39 @@ class Table:
             self.log(f"Warning: Attempted to set a flag for a non-existent column: {field_name}")
 
 
+    def parse_ansi_to_rgb_tuple(self, line):
+        import re
+        line = str(line)
+        # Look for the truecolor RGB format: \x1b[38;2;r;g;bm
+        match = re.search(r'\x1b\[38;2;(\d+);(\d+);(\d+)m(.*)', line)
+
+        # Remove all remaining ANSI codes to get pure text
+        text = self.escape_ansi(line)
+
+        if match:
+            r, g, b = int(match.group(1)), int(match.group(2)), int(match.group(3))
+            return text, (r, g, b)
+        else:
+            return text, None
+
     def display(self):
         self.log("rows: " + str(self.rows))
         self.set_columns()
         self.apply_rows()
 
         self.console.print(self.rich_table)
+        self.html_output = self.console.export_html()
+
+        self.raw_data = {"headers": self.fields_to_display, "rows": []}
+        for row in self.rows:
+            # keeping colors for PyQt UI
+            row_data = [self.parse_ansi_to_rgb_tuple(str(v)) for i, v in row if i in self.fields_to_display]
+            self.raw_data["rows"].append(row_data)
+
+    def escape_ansi(self, line):
+        import re
+        ansi_escape = re.compile(r"(?:[@-_]|[-])[0-?]*[ -/]*[@-~]")
+        return ansi_escape.sub("", line)
 
     def clear(self):
         self.rich_table = RichTable()
