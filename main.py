@@ -308,7 +308,7 @@ try:
                 pstats.clear_runtime_cache()
             continue
 
-        if True:
+        if game_state != lastGameState or game_state != 'INGAME':
             log(f"getting new {game_state} scoreboard")
             lastGameState = game_state
             game_state_dict = {
