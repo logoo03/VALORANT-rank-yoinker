@@ -307,35 +307,74 @@ class WorkerThread(QThread):
                     if hasattr(pstats, "clear_runtime_cache"):
                         pstats.clear_runtime_cache()
 
-                if game_state == "DISCONNECTED":
-                    richConsole.print("[yellow]Disconnected from Valorant. Attempting to reconnect...[/yellow]")
-                    # Loop waits for the Valorant client to respond
-                    while True:
-                        # Rereads the lockfile
-                        Requests.lockfile = Requests.get_lockfile()
+                presence_check = presences.get_presence()
+                
+                if presence_check is not None:
+                    break 
+                
+                time.sleep(5)
 
-                        if Requests.lockfile is None:
-                            time.sleep(5)
-                            continue
+            richConsole.print("[green]Reconnected successfully! Loading...[/green]")
+            
+            Requests.get_headers(refresh=True)
 
-                        presence_check = presences.get_presence()
+            Wss = Ws(Requests.lockfile, Requests, cfg, colors, hide_names, Server, rpc)
 
-                        if presence_check is not None:
-                            break
+            firstTime = True 
+            lastGameState = ""
+            reset_match_player_cache()
+            if hasattr(pstats, "clear_runtime_cache"):
+                pstats.clear_runtime_cache()
+            continue
 
-                        time.sleep(5)
+        if game_state != lastGameState or game_state != 'INGAME':
+            log(f"getting new {game_state} scoreboard")
+            lastGameState = game_state
+            game_state_dict = {
+                "INGAME": color("In-Game", fore=(241, 39, 39)),
+                "PREGAME": color("Agent Select", fore=(103, 237, 76)),
+                "MENUS": color("In-Menus", fore=(238, 241, 54)),
+            }
 
-                    richConsole.print("[green]Reconnected successfully! Loading...[/green]")
+            if (not firstPrint) and cfg.get_feature_flag("pre_cls"):
+                os.system("cls")
 
-                    Requests.get_headers(refresh=True)
+            is_leaderboard_needed = False
+            
+            # get new presence
+            presence = presences.get_presence()
+            priv_presence = presences.get_private_presence(presence)
+            
+            # Temp fix: Riot is swapping between nested and flat API structures.
+            party_state = ""
+            if "partyPresenceData" in priv_presence: # Check for nested structure
+                party_state = priv_presence["partyPresenceData"]["partyState"]
+            elif "partyState" in priv_presence: # Check for flattened structure
+                party_state = priv_presence["partyState"]
+            else:
+                # No known structure found, log and fail
+                log("ERROR: Unknown presence API structure in 'main'.")
+                party_state = priv_presence["partyPresenceData"]["partyState"]
+            
+            if (
+                priv_presence["provisioningFlow"] == "CustomGame"
+                or party_state == "CUSTOM_GAME_SETUP"
+            ):
+                gamemode = "Custom Game"
+            else:
+                gamemode = gamemodes.get(priv_presence["queueId"])
 
-                    Wss = Ws(Requests.lockfile, Requests, cfg, colors, hide_names, Server_inst, rpc)
+            heartbeat_data = {
+                "time": int(time.time()),
+                "state": game_state,
+                "mode": gamemode,
+                "puuid": Requests.puuid,
+                "players": {},
+            }
 
-                    firstTime = True
-                    lastGameState = ""
-                    reset_match_player_cache()
-                    if hasattr(pstats, "clear_runtime_cache"):
-                        pstats.clear_runtime_cache()
+            if game_state == "INGAME":
+                coregame_stats = coregame.get_coregame_stats()
+                if coregame_stats == None:
                     continue
 
                 if True:
