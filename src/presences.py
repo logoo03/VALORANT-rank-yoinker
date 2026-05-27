@@ -30,6 +30,8 @@ class Presences:
         return None
 
     def get_private_presence(self, presences):
+        if presences is None:
+            return None
         for presence in presences:
             if presence['puuid'] == self.Requests.puuid:
                 #preventing vry from crashing when lol is open

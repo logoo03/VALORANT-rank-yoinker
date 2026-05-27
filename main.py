@@ -459,7 +459,7 @@ class WorkerThread(QThread):
                                 status.update(
                                     f"Loading players... [{playersLoaded}/{len(Players)}]"
                                 )
-                                self.update_progress.emit(f"Loading players... [{playersLoaded}/{len(Players)}]", playersLoaded, len(Players))
+                                self.update_progress.emit(f"Loading... [{playersLoaded}/{len(Players)}]", playersLoaded, len(Players))
                                 playersLoaded += 1
 
                                 if player["Subject"] in stats_data.keys():
@@ -765,7 +765,7 @@ class WorkerThread(QThread):
                                 status.update(
                                     f"Loading players... [{playersLoaded}/{len(Players)}]"
                                 )
-                                self.update_progress.emit(f"Loading players... [{playersLoaded}/{len(Players)}]", playersLoaded, len(Players))
+                                self.update_progress.emit(f"Loading... [{playersLoaded}/{len(Players)}]", playersLoaded, len(Players))
                                 playersLoaded += 1
                                 party_icon = ""
 
@@ -980,7 +980,7 @@ class WorkerThread(QThread):
                                     status.update(
                                         f"Loading players... [{playersLoaded}/{len(Players)}]"
                                     )
-                                    self.update_progress.emit(f"Loading players... [{playersLoaded}/{len(Players)}]", playersLoaded, len(Players))
+                                    self.update_progress.emit(f"Loading... [{playersLoaded}/{len(Players)}]", playersLoaded, len(Players))
                                     playersLoaded += 1
                                     party_icon = PARTYICONLIST[0]
                                     playerRank = rank.get_rank(player["Subject"], seasonID)
@@ -1324,7 +1324,7 @@ class MainWindow(QMainWindow):
 
         self.progress_label = QLabel("")
         self.progress_label.setVisible(False)
-        self.progress_label.setStyleSheet("color: #FFFFFF; font-weight: bold; font-size: 14px;")
+        self.progress_label.setStyleSheet("color: #000000; font-weight: bold; font-size: 14px;")
         main_layout.addWidget(self.progress_label)
 
         self.progress_bar = QProgressBar()
@@ -1429,7 +1429,10 @@ class MainWindow(QMainWindow):
                 str(row_data.get("times", 0))
             ]
             for col_idx, text in enumerate(items):
-                item = QTableWidgetItem(text)
+                try:
+                    item = QTableWidgetItem(text)
+                except TypeError:
+                    item = QTableWidgetItem(text.get('name'))
                 item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 self.recent_table.setItem(row_idx, col_idx, item)
 
